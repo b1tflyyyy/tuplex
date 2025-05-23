@@ -25,6 +25,10 @@
 #include <iostream>
 #include <format>
 #include <cstddef>
+#include <utility>
+#include <concepts>
+#include <functional>
+#include <cstdint>
 
 namespace test_utils
 {
@@ -61,4 +65,91 @@ namespace test_utils
         std::size_t copies{};
         std::size_t moves{};
     };
+
+    enum class CV_REF
+    {
+        PLAIN_REF,
+        CONST_REF,
+        VOLATILE_REF,
+        CONST_VOLATILE_REF,
+        PLAIN_REF_REF,
+        CONST_REF_REF,
+        VOLATILE_REF_REF,
+        CONST_VOLATILE_REF_REF
+    };
+
+    template <CV_REF cv_ref, typename T>
+    constexpr decltype(auto) as_t(T& value) noexcept
+    {
+        if constexpr (cv_ref == CV_REF::PLAIN_REF)
+        {
+            return static_cast<T&>(value);
+        }
+        else if constexpr (cv_ref == CV_REF::CONST_REF)
+        {
+            return static_cast<const T&>(value);
+        }
+        else if constexpr (cv_ref == CV_REF::VOLATILE_REF)
+        {
+            return static_cast<volatile T&>(value);
+        }
+        else if constexpr (cv_ref == CV_REF::CONST_VOLATILE_REF)
+        {
+            return static_cast<const volatile T&>(value);
+        }
+        else if constexpr (cv_ref == CV_REF::PLAIN_REF_REF)
+        {
+            return static_cast<T&&>(value);
+        }
+        else if constexpr (cv_ref == CV_REF::CONST_REF_REF)
+        {
+            return static_cast<const T&&>(value);
+        }
+        else if constexpr (cv_ref == CV_REF::VOLATILE_REF_REF)
+        {
+            return static_cast<volatile T&&>(value);
+        }
+        else if constexpr (cv_ref == CV_REF::CONST_VOLATILE_REF_REF)
+        {
+            return static_cast<const volatile T&&>(value);
+        }
+    }
+
+    template <CV_REF... Sequence>
+    struct cv_refs_holder {};
+
+    template <CV_REF... Seq, typename Func>
+    constexpr void for_cv_ref_impl(Func&& func, cv_refs_holder<Seq...> = {}) noexcept
+    {
+        ((std::forward<Func>(func).template operator()<Seq>()), ...);
+    }
+
+    template <typename Func>
+    constexpr void for_cv_ref(Func&& func) noexcept
+    {
+        for_cv_ref_impl<CV_REF::PLAIN_REF,
+                        CV_REF::CONST_REF,
+                        CV_REF::VOLATILE_REF,
+                        CV_REF::CONST_VOLATILE_REF,
+                        CV_REF::PLAIN_REF_REF,
+                        CV_REF::CONST_REF_REF,
+                        CV_REF::VOLATILE_REF_REF,
+                        CV_REF::CONST_VOLATILE_REF_REF>(std::forward<Func>(func));
+    }
+
+    template <typename Tuple1, typename Tuple2, std::size_t... Indices>
+    constexpr void els_have_same_type(Tuple1&& tp1, Tuple2&& tp2, std::index_sequence<Indices...>) noexcept
+    {
+        static_assert(
+            ((std::is_same_v<decltype(get<Indices>(std::forward<Tuple1>(tp1))), 
+                             decltype(get<Indices>(std::forward<Tuple2>(tp2)))>) && ...)
+        );
+    }
+
+    template <typename Tuple1, typename Tuple2, std::size_t... Indices>
+    constexpr bool els_have_same_value(Tuple1&& tp1, Tuple2&& tp2, std::index_sequence<Indices...>) noexcept
+    {
+        return ((get<Indices>(std::forward<Tuple1>(tp1)) == 
+                 get<Indices>(std::forward<Tuple2>(tp2))) && ...);
+    }
 }
