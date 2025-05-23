@@ -68,5 +68,5 @@ namespace tuplex
     };
 
     template <typename U, typename... Us>
-    tuple(U&&, Us&&...) -> tuple<U, Us...>;
+    tuple(U&&, Us&&...) -> tuple<std::unwrap_ref_decay_t<U>, std::unwrap_ref_decay_t<Us>...>;
 }
