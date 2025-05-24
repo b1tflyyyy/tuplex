@@ -144,3 +144,67 @@ TEST(tuple_utils, cm_counter_cv_ref)
     });
 }
 
+TEST(tuple_utils, cat_types)
+{
+    using T1 = tuplex::tuple<int, float, std::string>;
+    using T2 = tuplex::tuple<int&&, float&, std::string>;
+    using T3 = tuplex::tuple<int>;
+
+    static_assert(std::is_same_v<tuplex::cat_types_t<T1, T2, T3>, 
+                                 tuplex::tuple<int, float, std::string, int&&, float&, std::string, int>>);
+}
+
+TEST(tuple_utils, tuple_cat_binary)
+{
+    auto t1{ tuplex::make_tuple(1, 3.4f, "hello world") };
+    auto t2{ tuplex::make_tuple(1, 2, 3) };
+
+    auto res{ tuplex::tuple_cat(t1, t2) };
+
+    using Res = decltype(res);
+    static_assert(std::is_same_v<Res, tuplex::tuple<int, float, const char*, int, int, int>>);
+}
+
+TEST(tuple_utils, tuple_cat_ternary)
+{
+    int a{ 1 };
+    float b{ 2.3f };
+    std::string c{ "hello world" };
+
+    tuplex::tuple<int, float, std::string> t1{ 1, 3.4f, "hello world" };
+    tuplex::tuple<int, int, int> t2{ 1, 2, 3 };
+    tuplex::tuple<int&&, float&, std::string> t3{ std::move(a), b, c };
+
+    auto res{ tuplex::tuple_cat(t1, t2, std::move(t3)) };
+    
+    using Res = decltype(res);
+    static_assert(std::is_same_v<Res, tuplex::tuple<int, float, std::string, int, int, int, int&&, float&, std::string>>);
+}
+
+TEST(tuple_utils, tuple_cat_vs_std)
+{
+    using namespace test_utils;
+
+    for_cv_ref([]<CV_REF type>() -> void
+    {
+        int a1{};
+        cm_counter cm1{};
+
+        int a2{};
+        cm_counter cm2{};
+
+        auto t1{ tuplex::make_tuple(as_t<type>(a1), cm1) };
+        auto t2{ tuplex::make_tuple(1, 2, 3) };
+        
+        auto s1{ std::make_tuple(as_t<type>(a2), cm2) };
+        auto s2{ std::make_tuple(1, 2, 3) };
+
+        auto res1{ tuplex::tuple_cat(t1, t2) };
+        auto res2{ std::tuple_cat(s1, s2) };
+
+        using indices = std::make_index_sequence<5>;
+
+        els_have_same_type(res1, res2, indices{});
+        ASSERT_TRUE(els_have_same_value(res1, res2, indices{}));
+    });
+}
