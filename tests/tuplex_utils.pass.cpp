@@ -181,7 +181,7 @@ TEST(tuple_utils, tuple_cat_ternary)
     static_assert(std::is_same_v<Res, tuplex::tuple<int, float, std::string, int, int, int, int&&, float&, std::string>>);
 }
 
-TEST(tuple_utils, tuple_cat_vs_std)
+TEST(tuple_utils, tuple_cat_vs_std_copy)
 {
     using namespace test_utils;
 
@@ -197,6 +197,34 @@ TEST(tuple_utils, tuple_cat_vs_std)
         auto t2{ tuplex::make_tuple(1, 2, 3) };
         
         auto s1{ std::make_tuple(as_t<type>(a2), cm2) };
+        auto s2{ std::make_tuple(1, 2, 3) };
+
+        auto res1{ tuplex::tuple_cat(t1, t2) };
+        auto res2{ std::tuple_cat(s1, s2) };
+
+        using indices = std::make_index_sequence<5>;
+
+        els_have_same_type(res1, res2, indices{});
+        ASSERT_TRUE(els_have_same_value(res1, res2, indices{}));
+    });
+}
+
+TEST(tuple_utils, tuple_cat_vs_std_move)
+{
+    using namespace test_utils;
+
+    for_cv_ref([]<CV_REF type>() -> void
+    {
+        int a1{};
+        cm_counter cm1{};
+
+        int a2{};
+        cm_counter cm2{};
+
+        auto t1{ tuplex::make_tuple(as_t<type>(a1), std::move(cm1)) };
+        auto t2{ tuplex::make_tuple(1, 2, 3) };
+        
+        auto s1{ std::make_tuple(as_t<type>(a2), std::move(cm2)) };
         auto s2{ std::make_tuple(1, 2, 3) };
 
         auto res1{ tuplex::tuple_cat(t1, t2) };
